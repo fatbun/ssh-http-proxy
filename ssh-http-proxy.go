@@ -48,7 +48,7 @@ func main() {
 	}
 	defer sshConn.Close()
 
-	// Create a Dial function that uses the SOCKS5 dialer
+	// Create a Dial function that uses the ssh dialer
 	dial := func(network, addr string) (net.Conn, error) {
 		return sshConn.Dial(network, addr)
 	}
