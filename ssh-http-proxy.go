@@ -10,6 +10,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"strconv"
+	"time"
 )
 
 func main() {
@@ -18,6 +19,7 @@ func main() {
 	sshUser := flag.String("user", "root", "SSH server user")
 	sshCertPath := flag.String("cert", "/path/to/pem", "SSH server certificate path")
 	httpPort := flag.Int("http", 8080, "HTTP proxy server port")
+	sshTimeout := flag.Int("timeout", 5, "SSH client connection timeout in seconds")
 	flag.Parse()
 
 	// Read the SSH certificate
@@ -41,6 +43,7 @@ func main() {
 			ssh.PublicKeys(key),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout: time.Duration(*sshTimeout) * time.Second,
 	}
 	sshConn, err := ssh.Dial("tcp", *sshAddr, sshConf)
 	if err != nil {
