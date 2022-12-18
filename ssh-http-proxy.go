@@ -43,8 +43,9 @@ func main() {
 			ssh.PublicKeys(key),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout: time.Duration(*sshTimeout) * time.Second,
+		Timeout:         time.Duration(*sshTimeout) * time.Second,
 	}
+
 	sshConn, err := ssh.Dial("tcp", *sshAddr, sshConf)
 	if err != nil {
 		log.Fatal("error tunnel to server: ", err)
@@ -69,7 +70,7 @@ func main() {
 		if r.Method == http.MethodConnect {
 			// Get the target host and port
 			host, port, err := net.SplitHostPort(r.URL.Host)
-			println("request host", host, ":", port)
+			log.Println("request host", host, ":", port)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -78,8 +79,20 @@ func main() {
 			// Dial the target host and port
 			conn, err := dial("tcp", net.JoinHostPort(host, port))
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusServiceUnavailable)
-				return
+				log.Println("dial error", err.Error())
+				// 尝试重新创建sshConn并重试，如果重试失败则返回错误
+				_ = sshConn.Close()
+				newSshConn, err := ssh.Dial("tcp", *sshAddr, sshConf)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				*sshConn = *newSshConn
+				conn, err = dial("tcp", net.JoinHostPort(host, port))
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
 			}
 			defer conn.Close()
 
