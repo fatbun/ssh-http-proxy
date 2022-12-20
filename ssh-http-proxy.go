@@ -1,60 +1,28 @@
 package main
 
 import (
-	"flag"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"os"
 	"strconv"
-	"time"
 )
 
-func main() {
-	// Parse the command line arguments
-	sshAddr := flag.String("ssh", "example.com:22", "SSH server address")
-	sshUser := flag.String("user", "root", "SSH server user")
-	sshCertPath := flag.String("cert", "/path/to/pem", "SSH server certificate path")
-	httpPort := flag.Int("http", 8080, "HTTP proxy server port")
-	sshTimeout := flag.Int("timeout", 5, "SSH client connection timeout in seconds")
-	flag.Parse()
+type SshHttpProxy struct {
+	sshConfig *ssh.ClientConfig
+	sshClient *ssh.Client
 
-	// Read the SSH certificate
-	cert, err := os.ReadFile(*sshCertPath)
-	if err != nil {
-		log.Fatal("error reading SSH certificate: ", err)
-	}
+	config    *Config
+	httpProxy *httputil.ReverseProxy
+	sshDial   func(network, addr string) (net.Conn, error)
+}
 
-	// 解析pem证书
-	key, err := ssh.ParsePrivateKey(cert)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	// Dial the SSH server
-	sshConf := &ssh.ClientConfig{
-		User: *sshUser,
-		Auth: []ssh.AuthMethod{
-			// 设置pem证书作为认证方式
-			ssh.PublicKeys(key),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         time.Duration(*sshTimeout) * time.Second,
-	}
-
-	sshConn, err := ssh.Dial("tcp", *sshAddr, sshConf)
-	if err != nil {
-		log.Fatal("error tunnel to server: ", err)
-	}
-	defer sshConn.Close()
-
+func (p *SshHttpProxy) createHttpProxy() *httputil.ReverseProxy {
 	// Create a Dial function that uses the ssh dialer
-	dial := func(network, addr string) (net.Conn, error) {
-		return sshConn.Dial(network, addr)
+	p.sshDial = func(network, addr string) (net.Conn, error) {
+		return p.sshClient.Dial(network, addr)
 	}
 
 	// Create a new HTTP proxy
@@ -62,33 +30,48 @@ func main() {
 		Director: func(r *http.Request) {
 		},
 		Transport: &http.Transport{
-			Dial: dial,
+			Dial: p.sshDial,
 		},
 	}
+	return httpProxy
+}
+
+func (p *SshHttpProxy) reCreateSshClient() error {
+	p.sshClient.Close()
+	sshClient, err := p.dial()
+	if err != nil {
+		return err
+	}
+	*p.sshClient = *sshClient
+	return nil
+}
+
+func (p *SshHttpProxy) Start() {
+	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(p.config.ProxyPort), p.createHandler()))
+}
+
+func (p *SshHttpProxy) createHandler() http.HandlerFunc {
 	// Create a new HTTP handler that supports the CONNECT method
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("request", r.URL.String(), r.Proto, r.Method, r.URL.Path, r.UserAgent())
 		if r.Method == http.MethodConnect {
-			// Get the target host and port
+			// Get the target Host and port
 			host, port, err := net.SplitHostPort(r.URL.Host)
-			log.Println("request host", host, ":", port)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
-			// Dial the target host and port
-			conn, err := dial("tcp", net.JoinHostPort(host, port))
+			// Dial the target Host and port
+			conn, err := p.sshDial("tcp", net.JoinHostPort(host, port))
 			if err != nil {
 				log.Println("dial error", err.Error())
-				// 尝试重新创建sshConn并重试，如果重试失败则返回错误
-				_ = sshConn.Close()
-				newSshConn, err := ssh.Dial("tcp", *sshAddr, sshConf)
+				err = p.reCreateSshClient()
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
-				*sshConn = *newSshConn
-				conn, err = dial("tcp", net.JoinHostPort(host, port))
+				conn, err = p.sshDial("tcp", net.JoinHostPort(host, port))
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
@@ -115,19 +98,34 @@ func main() {
 			}
 			defer clientConn.Close()
 
-			// Copy data between the client and the target host
+			// Copy data between the client and the target Host
 			go func() {
 				defer conn.Close()
 				io.Copy(conn, clientConn)
 			}()
 			io.Copy(clientConn, conn)
 		} else {
+			log.Println("request url", r.URL.String())
 			// Use the HTTP proxy to handle the request
-			httpProxy.ServeHTTP(w, r)
+			p.httpProxy.ServeHTTP(w, r)
 		}
-	})
+	}
+}
 
-	// Start the HTTP proxy server
-	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(*httpPort), handler))
+func (p *SshHttpProxy) dial() (*ssh.Client, error) {
+	return ssh.Dial("tcp", p.config.SshAddr, p.sshConfig)
+}
 
+func NewSshHttpProxy(config *Config) *SshHttpProxy {
+	sshHttpProxy := &SshHttpProxy{
+		config: config,
+	}
+	sshHttpProxy.sshConfig = createSshConfig(config)
+	sshClient, err := sshHttpProxy.dial()
+	if err != nil {
+		log.Fatal("error tunnel to server: ", err)
+	}
+	sshHttpProxy.sshClient = sshClient
+	sshHttpProxy.httpProxy = sshHttpProxy.createHttpProxy()
+	return sshHttpProxy
 }
