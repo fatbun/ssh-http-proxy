@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
@@ -8,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strconv"
+	"sync"
+	"time"
 )
 
 type SshHttpProxy struct {
@@ -17,6 +20,9 @@ type SshHttpProxy struct {
 	config    *Config
 	httpProxy *httputil.ReverseProxy
 	sshDial   func(network, addr string) (net.Conn, error)
+
+	mutex                     sync.Mutex
+	lastReCreateSshClientTime *time.Time
 }
 
 func (p *SshHttpProxy) createHttpProxy() *httputil.ReverseProxy {
@@ -62,21 +68,45 @@ func (p *SshHttpProxy) createHandler() http.HandlerFunc {
 				return
 			}
 
-			// Dial the target Host and port
-			conn, err := p.sshDial("tcp", net.JoinHostPort(host, port))
-			if err != nil {
-				log.Println("dial error", err.Error())
-				err = p.reCreateSshClient()
+			var conn net.Conn
+			//SshTimeout not working for sshDial in some cases, so use context to timeout
+			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.config.SshTimeout)*time.Second)
+			go func() {
+				defer cancel()
+				conn, err = p.sshDial("tcp", net.JoinHostPort(host, port))
 				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+					p.mutex.Lock()
+					defer p.mutex.Unlock()
+					if p.lastReCreateSshClientTime == nil || p.lastReCreateSshClientTime.Before(time.Now().Add(-5*time.Second)) {
+						now := time.Now()
+						p.lastReCreateSshClientTime = &now
+						err = p.reCreateSshClient()
+						if err != nil {
+							log.Println("failed to recreate ssh client", err.Error())
+							http.Error(w, err.Error(), http.StatusInternalServerError)
+							return
+						}
+						log.Println("recreate ssh client successfully")
+					}
+				}
+			}()
+
+			select {
+			case <-ctx.Done():
+				if ctx.Err() == context.DeadlineExceeded {
+					http.Error(w, "timeout", http.StatusRequestTimeout)
 					return
 				}
+			}
+
+			if conn == nil { // retry ssh dial
 				conn, err = p.sshDial("tcp", net.JoinHostPort(host, port))
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
 			}
+
 			defer conn.Close()
 
 			// Respond to the CONNECT request

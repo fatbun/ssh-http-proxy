@@ -39,7 +39,7 @@ func parseConfig() *Config {
 	sshUser := flag.String("ssh_user", "root", "SSH server user")
 	sshCertPath := flag.String("ssh_cert", "", "SSH server certificate path")
 	proxyPort := flag.Int("proxy_port", 8080, "http proxy server port")
-	sshTimeout := flag.Int("timeout", 5, "SSH client connection timeout in seconds")
+	sshTimeout := flag.Int("timeout", 2, "SSH client connection timeout in seconds")
 
 	flag.Parse()
 
