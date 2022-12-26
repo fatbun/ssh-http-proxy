@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"strconv"
 	"sync"
 	"time"
@@ -17,29 +16,11 @@ type SshHttpProxy struct {
 	sshConfig *ssh.ClientConfig
 	sshClient *ssh.Client
 
-	config    *Config
-	httpProxy *httputil.ReverseProxy
-	sshDial   func(network, addr string) (net.Conn, error)
+	config  *Config
+	sshDial func(network, addr string) (net.Conn, error)
 
 	mutex                     sync.Mutex
 	lastReCreateSshClientTime *time.Time
-}
-
-func (p *SshHttpProxy) createHttpProxy() *httputil.ReverseProxy {
-	// Create a Dial function that uses the ssh dialer
-	p.sshDial = func(network, addr string) (net.Conn, error) {
-		return p.sshClient.Dial(network, addr)
-	}
-
-	// Create a new HTTP proxy
-	httpProxy := &httputil.ReverseProxy{
-		Director: func(r *http.Request) {
-		},
-		Transport: &http.Transport{
-			Dial: p.sshDial,
-		},
-	}
-	return httpProxy
 }
 
 func (p *SshHttpProxy) reCreateSshClient() error {
@@ -134,10 +115,6 @@ func (p *SshHttpProxy) createHandler() http.HandlerFunc {
 				io.Copy(conn, clientConn)
 			}()
 			io.Copy(clientConn, conn)
-		} else {
-			log.Println("request url", r.URL.String())
-			// Use the HTTP proxy to handle the request
-			p.httpProxy.ServeHTTP(w, r)
 		}
 	}
 }
@@ -156,6 +133,10 @@ func NewSshHttpProxy(config *Config) *SshHttpProxy {
 		log.Fatal("error tunnel to server: ", err)
 	}
 	sshHttpProxy.sshClient = sshClient
-	sshHttpProxy.httpProxy = sshHttpProxy.createHttpProxy()
+
+	// Create a Dial function that uses the ssh dialer
+	sshHttpProxy.sshDial = func(network, addr string) (net.Conn, error) {
+		return sshHttpProxy.sshClient.Dial(network, addr)
+	}
 	return sshHttpProxy
 }
