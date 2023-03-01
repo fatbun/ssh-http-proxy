@@ -68,6 +68,17 @@ func (p *SshHttpProxy) createHandler() http.HandlerFunc {
 							return
 						}
 						log.Println("recreate ssh client successfully")
+					} else {
+						log.Println("not the right time to recreate ssh client", err.Error())
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+						return
+					}
+
+					conn, err = p.sshDial("tcp", net.JoinHostPort(host, port))
+					if err != nil {
+						log.Println("maybe we get some problems to connect to ssh server?", err.Error())
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+						return
 					}
 				}
 			}()
@@ -80,12 +91,9 @@ func (p *SshHttpProxy) createHandler() http.HandlerFunc {
 				}
 			}
 
-			if conn == nil { // retry ssh dial
-				conn, err = p.sshDial("tcp", net.JoinHostPort(host, port))
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
+			if conn == nil {
+				http.Error(w, "conn is nil", http.StatusInternalServerError)
+				return
 			}
 
 			defer conn.Close()
@@ -138,5 +146,6 @@ func NewSshHttpProxy(config *Config) *SshHttpProxy {
 	sshHttpProxy.sshDial = func(network, addr string) (net.Conn, error) {
 		return sshHttpProxy.sshClient.Dial(network, addr)
 	}
+
 	return sshHttpProxy
 }
