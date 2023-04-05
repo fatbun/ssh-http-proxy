@@ -1,76 +1,58 @@
-# SSH HTTP Proxy
+# SSH HTTP Proxy: Setup and Usage Guide
 
-This is a Go program that creates an HTTP proxy server using SSH to connect to another server.
+In this guide, we will learn how to set up and use an SSH HTTP proxy. An SSH HTTP proxy allows you to route your internet traffic through an SSH tunnel, encrypting your data and bypassing network restrictions.
 
-## Usage
+## Prerequisites
 
-To use the program, run it with the following command-line arguments:
+To follow this guide, you will need:
 
-```shell
-ssh-http-proxy -ssh_addr <SSH server address> -ssh_user <SSH server user> -ssh_cert <SSH server certificate path> -proxy_port <HTTP proxy server port>
+1. A remote server with SSH access.
+2. A local machine with an SSH client installed.
+3. An SSH key pair (public and private keys) for authentication.
+
+## Setting up the SSH HTTP Proxy
+
+### Step 1: Install the SSH HTTP Proxy
+
+First, you need to download and install the `ssh-http-proxy` tool on your local machine. You can find the installation instructions on the [official GitHub repository](https://github.com/yourusername/ssh-http-proxy).
+
+### Step 2: Configure the SSH HTTP Proxy
+
+Before starting the service, you need to configure the proxy with the SSH server details. Create a configuration file named `config.yml` in the `ssh-http-proxy` directory with the following content:
+
+```yaml
+ssh_server:
+  addr: example.com:22
+  user: root
+  cert: /path/to/your/pem
+
+proxy:
+  port: 8080
 ```
 
-For example:
+Replace `example.com`, `root`, and `/path/to/your/pem` with the correct values for your SSH server, user, and certificate.
 
-```shell
-ssh-http-proxy -ssh_addr example.com:22 -ssh_user root -ssh_cert /path/to/pem -proxy_port 8080
+### Step 3: Start the SSH HTTP Proxy Service
+
+To start the SSH HTTP proxy service, navigate to the `bin` directory and run the following command:
+
+```bash
+cd bin
+ssh-http-proxy -config=config.yml
 ```
 
 This command starts the HTTP proxy server on port 8080 and uses the specified SSH server, user, and certificate to create a tunnel for incoming HTTP requests.
 
-# Preparation
+## Client Usage
 
-## Generating a PEM Key File
-
-If you are using Alibaba Cloud, follow these steps to generate a PEM key file:
-
-1. Go to ECS -> Key Pair -> Create Key Pair.
-2. Download the PEM key file.
-3. Bind the key pair -> Select instance.
-4. Restart ECS.
-
-## Installing the Golang Environment
-
-To install Golang, run `brew install go` on the command line. After installation, modify the mirror source with the following commands:
-
-```bash
-echo "export GO111MODULE=on" >> ~/.zshrc
-echo "export GOPROXY=https://goproxy.cn,direct" >> ~/.zshrc
-source ./zshrc
-```
-
-## Cloning the Repository
-
-Clone the repository by running the following command:
-
-```bash
-git clone https://github.com/qfrank/ssh-http-proxy.git
-```
-
-## Compiling the Code
-
-Navigate to the build directory and compile the code:
-
-```bash
-cd build
-./build
-```
-
-## Starting the Service
-
-Navigate to the bin directory and start the service:
-
-```bash
-cd bin
-ssh-http-proxy -ssh_addr example.com:22 -ssh_user root -ssh_cert /path/to/pem -proxy_port 8080
-```
-
-# Client Usage
-
-For clients such as iPhone, configure the proxy settings by following these steps:
+Once the service is started, clients can connect to the proxy server. The following example demonstrates how to configure an iPhone to use the proxy server:
 
 1. Go to Settings -> Wi-Fi.
 2. Tap the "i" icon next to the connected Wi-Fi network.
 3. Scroll down and tap on "Configure Proxy".
-4. Select "Manual" and enter the IP and port number for the proxy server.
+4. Select "Manual" and enter the IP and port number for the proxy server (in this case, port 8080).
 5. Tap "Save" to apply the changes.
+
+Remember to replace the IP and port number with the correct values for your specific setup.
+
+Now, you have successfully set up and started using the SSH HTTP proxy. All your internet traffic from the configured device will be routed through the SSH tunnel, providing you with a secure and private browsing experience.
