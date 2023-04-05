@@ -1,19 +1,17 @@
-# SSH HTTP Proxy: Setup and Usage Guide
-
-In this guide, we will learn how to set up and use an SSH HTTP proxy. An SSH HTTP proxy allows you to route your internet traffic through an SSH tunnel, encrypting your data and bypassing network restrictions.
-
-## Prerequisites
-
-To follow this guide, you will need:
-
-1. A remote server with SSH access.
-2. An SSH key pair (public and private keys) for authentication.
-
 ## Setting up the SSH HTTP Proxy
 
 ### Step 1: Install the SSH HTTP Proxy
 
-First, you need to download and install the `ssh-http-proxy` tool on your local machine. You can find the installation instructions on the [official GitHub repository](https://github.com/qfrank/ssh-http-proxy).
+First, you need to download and install the `ssh-http-proxy` tool on your local machine. Since it's a Golang repository, follow these steps to install the tool:
+
+1. Make sure you have [Golang](https://golang.org/dl/) installed on your local machine.
+2. Open a terminal or command prompt and run the following command to download and install the `ssh-http-proxy` tool:
+
+```bash
+go get -u github.com/qfrank/ssh-http-proxy
+```
+
+3. This command will install the `ssh-http-proxy` binary in your `$GOPATH/bin` directory. Make sure the `$GOPATH/bin` directory is included in your system's `PATH` environment variable.
 
 ### Step 2: Configure the SSH HTTP Proxy
 
@@ -36,7 +34,6 @@ Replace `example.com`, `root`, and `/path/to/your/pem` with the correct values f
 To start the SSH HTTP proxy service, navigate to the `bin` directory and run the following command:
 
 ```bash
-cd bin
 ssh-http-proxy -config=config.yml
 ```
 
