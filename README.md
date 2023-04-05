@@ -12,50 +12,60 @@ ssh-http-proxy -ssh_addr example.com:22 -ssh_user root -ssh_cert /path/to/pem -p
 ```
 This will start the HTTP proxy server on port 8080, and it will use the specified SSH server, user, and certificate to create a tunnel for incoming HTTP requests.
 
-# 操作步骤
+# Operation Steps
 
-## 生成pem秘钥文件
 
-> 以阿里云为例
 
-- ECS——》密钥对——》创建密钥对
-- 下载pem秘钥文件
+## Generate PEM Key File
 
-- 绑定密钥对——》选择实例
-- 重启ecs
+> Taking Alibaba Cloud as an example
 
-## 安装 golang 环境
+- ECS -> Key Pair -> Create Key Pair
+- Download the PEM key file
+- Bind the key pair -> Select instance
+- Restart ECS
+
+
+
+## Install Golang Environment
 
 - `brew install go`
+- Modify mirror source
 
-- 修改镜像源
-
-  ```bash
+```bash
   echo "export GO111MODULE=on" >> ~/.zshrc
   echo "export GOPROXY=https://goproxy.cn,direct" >> ~/.zshrc
   source ./zshrc
-  ```
+```
 
-## 克隆仓库
+
+
+## Clone Repository
 
 ```bash
 gcl https://github.com/qfrank/ssh-http-proxy.git
 ```
 
-## 编译代码
+
+
+## Compile Code
 
 ```bash
 cd build
 ./build
 ```
 
-## 启动服务
+
+
+## Start Service
 
 ```bash
 cd bin
 ssh-http-proxy -ssh_addr example.com:22 -ssh_user root -ssh_cert /path/to/pem -proxy_port 8080
 ```
 
-# 使用
 
-客户端如iPhone，在设置——》无线局域网——》配置代理，输入ip、端口即可。
+
+# Usage
+
+For clients like iPhone, go to Settings -> Wi-Fi -> Configure Proxy and enter IP and port number.
