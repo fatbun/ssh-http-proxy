@@ -7,14 +7,13 @@ In this guide, we will learn how to set up and use an SSH HTTP proxy. An SSH HTT
 To follow this guide, you will need:
 
 1. A remote server with SSH access.
-2. A local machine with an SSH client installed.
-3. An SSH key pair (public and private keys) for authentication.
+2. An SSH key pair (public and private keys) for authentication.
 
 ## Setting up the SSH HTTP Proxy
 
 ### Step 1: Install the SSH HTTP Proxy
 
-First, you need to download and install the `ssh-http-proxy` tool on your local machine. You can find the installation instructions on the [official GitHub repository](https://github.com/yourusername/ssh-http-proxy).
+First, you need to download and install the `ssh-http-proxy` tool on your local machine. You can find the installation instructions on the [official GitHub repository](https://github.com/qfrank/ssh-http-proxy).
 
 ### Step 2: Configure the SSH HTTP Proxy
 
